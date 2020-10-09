@@ -4,6 +4,9 @@ using UnityEngine;
 
 public class SphereMovement : MonoBehaviour
 {
+    [SerializeField]
+	Transform playerInputSpace = default;
+
     [SerializeField, Range(0f, 100f)]
     float maxSpeed = 10f;
 
@@ -20,6 +23,8 @@ public class SphereMovement : MonoBehaviour
     [SerializeField, Range(0f, 10f)]
 	float jumpHeight = 2f; 
 
+    bool onGround;
+
     // Start is called before the first frame update
     void Start()
     {
@@ -35,7 +40,18 @@ public class SphereMovement : MonoBehaviour
         playerInput.x = Input.GetAxis("Horizontal");
         playerInput.y = Input.GetAxis("Vertical");
         playerInput = Vector2.ClampMagnitude(playerInput, 1f);
-        desiredVelocity = new Vector3(playerInput.x, 0f, playerInput.y) * maxSpeed; 
+        if (playerInputSpace) {
+            Vector3 forward = playerInputSpace.forward;
+			forward.y = 0f;
+			forward.Normalize();
+			Vector3 right = playerInputSpace.right;
+			right.y = 0f;
+			right.Normalize();
+			desiredVelocity = (forward * playerInput.y + right * playerInput.x) * maxSpeed;
+		}
+		else {
+            desiredVelocity = new Vector3(playerInput.x, 0f, playerInput.y) * maxSpeed; 
+        }
     }
 
     void FixedUpdate() {
@@ -50,9 +66,29 @@ public class SphereMovement : MonoBehaviour
         }
 
         body.velocity = velocity;
+
+        onGround = false;
     }
 
     void Jump() {
-        velocity.y += Mathf.Sqrt(-2f * Physics.gravity.y * jumpHeight);
+        if (onGround) {
+            velocity.y += Mathf.Sqrt(-2f * Physics.gravity.y * jumpHeight);
+        }
+    }
+
+    void OnCollisionEnter(Collision collision) {
+        EvaluateCollision(collision);
+    }
+
+    void OnCollisionStay(Collision collision) {
+        EvaluateCollision(collision);
+    }
+
+    void EvaluateCollision(Collision collision) {
+        for (int i = 0; i < collision.contactCount; i++) {
+			Vector3 normal = collision.GetContact(i).normal;
+            onGround |= normal.y >= 0.9f;
+		}
+
     }
 }
